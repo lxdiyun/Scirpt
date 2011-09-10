@@ -1,0 +1,76 @@
+﻿#!/usr/bin/env expect -f
+
+# The next line is a comment in Tcl, but not sh \
+
+#    exec /opt/bootleg/bin/expect $0 $@
+
+# file name which contain the sos commands
+set sos_cmd_file_name ./sos_cmd_file_test
+
+# sos information
+set dca_sos_ip $env(dca_sos_ip);
+
+# typhon ssh user and password
+set ssh_user      $env(ssh_user);
+set ssh_password  $env(ssh_password);
+
+# sos user and password
+set sos_user $env(sos_user);
+set sos_password $env(sos_password);
+
+# time out value
+set typhoon_time_out_value $env(typhoon_time_out_value);
+set sos_time_out_value $env(sos_time_out_value);
+
+## login to typhoon and UCE SOS
+#spawn ssh $ssh_user@$typhoon_ip;
+#
+#set timeout $typhoon_time_out_value
+#expect {
+#   "continue connecting"      {send "yes\r"; exp_continue;}
+#   "Password:"                {send "$ssh_password\r";}
+#   timeout                    {send_user "Connect Typhoon Failure\n\r"; exit 0; }
+#}
+#
+#set timeout $typhoon_time_out_value
+#expect "cli»" {
+#   send "sosAgent DCA login DCA\r";
+#} timeout { send_user "Login Typhoon Failure\n\r"; exit 0; }
+
+# login to dca sos
+spawn telnet $dca_sos_ip
+
+# input user name and password
+set timeout $sos_time_out_value
+expect "Enter username and password" {
+   send "$sos_user $sos_password"
+} timeout {send_user "Telnet sos failure"; exit 0; }
+
+# read and send cmdd
+set sos_cmd_file [open $sos_cmd_file_name r]
+while {[gets $sos_cmd_file sos_cmd ]»=0} {
+
+# don't excute the command whihc begin with '#'
+   if {![string match "#*" $sos_cmd]} {
+      set timeout $sos_time_out_value
+         expect "»" {
+            send "$sos_cmd\r";
+         } timeout { exit 0;}
+   }
+}
+close $sos_cmd_file
+
+#set timeout $sos_time_out_value
+#expect "»" {
+#   send "logout\r";
+#} timeout { exit 0; }
+
+# quit from typhoon
+#set timeout $typhoon_time_out_value
+#expect "cli»" {
+#   send "exit\r";
+#} timeout { send_user "Logout DCA SOS Failure\n\r"; exit 0; }
+
+interact;
+
+exit 0;

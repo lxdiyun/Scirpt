@@ -1,0 +1,92 @@
+﻿logutil;clear s;clear t
+
+
+listsf all
+
+
+load uceiniui replace nocheck norestart
+
+
+load asulgmon replace nocheck norestart
+
+
+load becnagui replace nocheck norestart
+
+
+load bidcidau replace nocheck norestart
+
+
+load cdmainst replace nocheck norestart
+
+
+load mtxtaskp replace nocheck norestart
+
+
+load cmdhp replace nocheck norestart
+
+
+load cstpsaud replace nocheck norestart
+
+
+load cttaudit replace nocheck norestart
+
+
+load cvaagtui replace nocheck norestart
+
+
+load handoff replace nocheck norestart
+
+
+load ipmprfmp replace nocheck norestart
+
+
+load keepalui replace nocheck norestart
+
+
+load mgcimhp replace nocheck norestart
+
+
+load mtxaudit replace nocheck norestart
+
+
+load mtxnpiui replace nocheck norestart
+
+
+load mtxworkp replace nocheck norestart
+
+
+load qcaeocui replace nocheck norestart
+
+
+load qcainvui replace nocheck norestart
+
+
+load bidcidau replace nocheck norestart
+
+
+load cttaudit replace nocheck norestart
+
+
+load ipmprfmp replace nocheck norestart
+
+
+load cvaagtui replace nocheck norestart
+
+
+load mrlchdlr replace nocheck norestart
+
+
+load trktbpip replace nocheck norestart
+
+
+load trktbsum replace nocheck norestart
+
+
+
+
+
+
+
+
+restart reload active
+YES

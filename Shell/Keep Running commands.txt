@@ -1,0 +1,1 @@
+while x=0; do date; iptables -t mangle -L; sleep 1; done >> iptables.log

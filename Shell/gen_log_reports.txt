@@ -1,0 +1,18 @@
+﻿#!/bin/sh
+
+report_dir="Reports"
+
+if !([ -d "$report_dir" ]); then
+   mkdir "$report_dir"
+fi
+
+for directory in *
+do
+   if [ -d "$directory" ] && [[ "$directory" != "$report_dir" ]]; then
+      #echo $directory
+      cd "$directory"
+      export report_file="../$report_dir/$directory.txt"
+      gen_log_report
+      cd ..
+   fi
+done

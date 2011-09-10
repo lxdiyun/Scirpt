@@ -1,0 +1,160 @@
+#!/usr/bin/expect -f
+# The next line is a comment in Tcl, but not sh \
+# exec /opt/bootleg/bin/expect $0 $@
+
+
+# login infotmation
+set passport_oam_ip  47.154.145.22;
+set user debug;
+set password  debug;
+
+# testing card number
+set card_number 8;
+
+
+# dp 25 pararmter
+set test_time_sec 10;
+set temux 1;
+set spectra 1;
+set ATM_loopback "cpac";
+set TDM_loopback "spectra";
+
+# test time counter
+set test_counter 500;
+
+set time_out_value 10;
+
+# open report file
+set report_file [open "./BJ_DP_25_report.txt" a];
+set begin_time [clock scan now];
+puts $report_file "\nAutomatic Testing Begin: [clock format $begin_time -f %c]"
+
+puts $report_file [format "Server IP: %s" $passport_oam_ip];
+puts $report_file [format "Card: %d" $card_number];
+puts $report_file [format "test_time: %d sec" $test_time_sec];
+puts $report_file [format "temux: %d " $temux];
+puts $report_file [format "spectra: %d " $spectra];
+puts $report_file [format "TDM loopback: %s " $TDM_loopback];
+puts $report_file [format "ATM loopback: %s " $ATM_loopback];
+puts $report_file [format "Will run Test case %d Times" $test_counter];
+flush $report_file;
+
+# unload load file to ftp server
+spawn telnet $passport_oam_ip
+
+set timeout $time_out_value
+expect "ogin:" {
+   send "$user\r";
+}  timeout { send_user "Connect Passport Failure\n\r"; exit 0; }
+
+set timeout $time_out_value;
+expect "assword:" {
+   send "$password\r";
+} timeout { exit 0; }
+
+expect -re "\[0-9\]\+>" {
+   send "os rlogin \"card$card_number\"\r";
+} timeout { send_user "Login to card$card_number Failure\n\r"; exit 0; }
+
+expect -ex Yes/No] {
+   send "Yes\r";
+}
+
+expect -re "Card \[0-9\]\+ .*\->" {
+   send "set unsafe\r";
+}
+expect -re "Card \[0-9\]\+ .*\->" {
+   send "set promote\r";
+}
+expect -re "Card \[0-9\]\+ .*\->" {
+   send "set verbose\r";
+}
+expect -re "Card \[0-9\]\+ .*\->" {
+   send "cd \"software\/mgw\/obj\/ppc\"\r";
+}
+expect -re "Card \[0-9\]\+ .*\->" {
+   send "mateShell\r";
+}
+
+set timeout 99999;
+
+set test_case_runed_counter 0;
+set test_success_counter  0;
+set test_failed_counter  0;
+
+while {$test_counter > $test_case_runed_counter} {
+   send_user "\n#------------------------ Test Run ";
+   send_user [expr $test_case_runed_counter + 1];
+   send_user " Time Begin -----------------------\n";
+
+   expect -re "mate\[0-9\]\+.*>" {
+      send "aset /hwcard/cminit\r";
+   }
+   expect -ex ok] {
+   }
+   expect -re "mate\[0-9\]\+.*>" {
+      send "aset /hwcard/verbose on\r";
+   }
+   expect -ex ok] {
+   }
+   expect -re "mate\[0-9\]\+.*>" {
+      send "aset /hwcard/test/config sonet 0xffff $test_time_sec\r";
+   } timeout { break;}
+   expect -ex ok] {
+   }
+   expect -re "mate\[0-9\]\+.*>" {
+      send "aset /hwcard/test/configTemux $temux\r";
+   }
+   expect -ex ok] {
+   }
+   expect -re "mate\[0-9\]\+.*>" {
+      send "aset /hwcard/test/configSpectra $spectra\r";
+   }
+   expect -ex ok] {
+   }
+   expect -re "mate\[0-9\]\+.*>" {
+      send "aset /hwcard/test/configBert 288 $TDM_loopback $ATM_loopback 2016 true 10\r";
+   }
+   expect -ex ok] {
+   }
+   expect -re "mate\[0-9\]\+.*>" {
+      send "aset /hwcard/test/datapath 25\r";
+   }
+   expect {
+      -ex ok] { 
+         set test_success_counter [expr $test_success_counter + 1];
+         puts $report_file "Test [expr $test_case_runed_counter + 1] Passed. Total Passed: $test_success_counter Failed: $test_failed_counter";
+      }
+      -ex failed] {
+         set test_failed_counter [expr $test_failed_counter + 1];
+         puts $report_file "Test [expr $test_case_runed_counter + 1] Failed. Total Passed: $test_success_counter Failed: $test_failed_counter";
+      }
+   }
+   send_user "\n#------------------------ Test Run ";
+   send_user [expr $test_case_runed_counter + 1];
+   send_user " Time Ended -----------------------\n";
+   flush $report_file;
+   set test_case_runed_counter [expr $test_case_runed_counter + 1];
+}
+
+expect -re "mate\[0-9\]\+.*>" {
+      send "quit\r";
+}
+
+expect -re "Card \[0-9\]\+ .*\->" {
+      send "quit\r";
+}
+
+expect -re "\[0-9\]\+>" {
+      send "quit\r";
+}
+
+
+interact;
+
+set ended_time [clock scan now];
+puts $report_file "Automatic Testing Ended: [clock format $ended_time -f %c]"
+close $report_file;
+
+exit 0;
+

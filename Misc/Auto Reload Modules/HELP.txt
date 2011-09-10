@@ -1,0 +1,11 @@
+﻿1 change the typhoon_ip and dca_sos ip(default is PMSC1 and DCA 0) in configure file.
+2 use
+
+./dca_node_operation_test_upload_ca
+
+to upload modules and restart reload on CA
+
+
+./dca_node_operation_test_upload_dca
+
+to upload modules and restart reload on DCA

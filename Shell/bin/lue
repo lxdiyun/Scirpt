@@ -1,0 +1,3 @@
+#!/sbin/sh
+
+upd $1 | gawk '/((pvg-spm)|(clearlib)|(pvg-ssm)).*((make\.ssm)|(make\.spm)|(Makefile)|(\.((cc)|h)))/{gsub(/[\[\]]/,"");sub(/@@.*$/,"");print;}'

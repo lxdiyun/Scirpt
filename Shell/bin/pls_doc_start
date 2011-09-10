@@ -1,0 +1,3 @@
+export DISPLAY=adli:0.0
+cd /home/adli/pls
+plssh mtxdoc

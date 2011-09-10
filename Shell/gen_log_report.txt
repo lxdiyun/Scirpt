@@ -1,0 +1,18 @@
+﻿#!/bin/sh
+
+logs=("CA.log CLI.log DCA.log")
+temp_file="temp.txt"
+
+for log in *.log
+do
+   if [ -a $log ]; then
+      cat $log »» $temp_file
+   fi
+done
+
+
+if [ -a $temp_file ]; then
+   sed -i "s/
+//g; s///g; s/ //g; s///g; s///g;" $temp_file
+   mv $temp_file "$report_file"
+fi

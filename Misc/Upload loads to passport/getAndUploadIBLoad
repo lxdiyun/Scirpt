@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+echo --------------------------------------
+# global variable definition
+source configure
+
+./wgetLoad
+
+#collect load name
+load_names=""
+
+for file in $load_dir/*.fpgaIB
+do
+   load_name=${file%%\.fpgaIB}
+   load_name=${load_name##$load_dir\/}
+   load_names="${load_names} $load_name"
+done
+
+echo $load_names
+
+# upload loads
+expect -f uploadToFtp $load_names
+

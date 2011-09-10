@@ -1,0 +1,55 @@
+﻿#!/usr/bin/env expect -f
+
+# The next line is a comment in Tcl, but not sh \
+
+# exec /opt/bootleg/bin/expect $0 $@
+
+set load_dir $env(load_dir);
+
+set ca_sos_ftp_ip  $env(ca_sos_ip);
+
+set ftp_user      $env(ftp_user);
+set ftp_password  $env(ftp_password);
+
+set time_out_value $env(ftp_time_out_value);
+
+# unload load file to ftp server
+spawn ftp $ca_sos_ftp_ip;
+
+set timeout $time_out_value
+expect "Name" {
+   send "$ftp_user\r";
+}  timeout { send_user "Connect FTP Failure\n\r"; exit 0; }
+
+set timeout $time_out_value
+expect "Password:" {
+   send "$ftp_password\r";
+} timeout { exit 0; }
+
+set timeout $time_out_value
+expect "logged in" {
+   send "bin\r";
+} timeout { send_user "Login FTP Failure\n\r"; exit 0; }
+
+set timeout $time_out_value
+expect "ftp»" {
+   send "quote site lrecl 256\r";
+} timeout { exit 0; }
+
+foreach moudle $argv {
+
+   set timeout $time_out_value
+      expect "ftp»" {
+         send "put $load_dir/$moudle.loadppc $moudle\$ld\r";
+      } timeout { exit 0; }
+
+}
+
+set timeout $time_out_value
+expect "ftp»" {
+   send "quit\r";
+} timeout { exit 0; }
+
+interact;
+
+exit 0;

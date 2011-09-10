@@ -1,0 +1,673 @@
+#!/usr/bin/perl
+#
+# History:
+#  07/07/2007 - Initial creation Ver 0.14 - 
+#                                Created by Vincent Huang
+#  07/30/2007 - Second Version 0.20 -
+#                                Modified by Vincent Huang
+#                                
+#  Summary: Enhanced to be able to run in PLS.
+#     1. Initial parameters:
+#                 *.sdelta, *.sdelta.fix
+#     2. Ability to handle more parameters:
+#                             Module
+#                             Update
+#                             Patch
+#                             CR.###
+#                             ACT.###
+#
+#  05/22/2008 - Version 0.21 - Modified by Vincent Huang
+#  Summary:
+#       count in the new section in the module.
+#
+#  00/00/0000 - Version 0.2x - Modified by ...
+#  Summary:
+#
+# ########################################################
+
+
+sub help
+{
+print STDERR <<HELP
+' '
+**********************************************************
+*                                                        *
+*        Lines of Code(LOC) Calculate Tool               *
+*                                                        *
+*  This perl script calculate the lines of code which    *
+*  is Added/Deleted/Changed in .sdelta,.delta.fix type   *
+*  of file or can be able to run in PLS to calculate the *
+*  change in Module,Update,Patch,CR.\#\#\#,ACT.\#\#\#. And     *
+*  then give summary & details information for all the   *
+*  files.                                                *
+*                                                        *
+*  Usage: loc [-c] [-b] [-p] <file|PLS ...>              *
+*     -c          Include comment lines.                 *
+*     -b          Include blank lines.                   *
+*     -p          Print out the details of code change.  *
+*     attribues    a - Print out Added lines only.       *
+*                  d - Print out Deleted lines only.     *
+*                  c - Print out Changed lines only.     *
+*     file        .sdelta,.sdelta.fix file or directory. *
+*     PLS         Module,Update,Patch,CR.#\#\#,ACT.\#\#\#     *
+*                                                        *
+*  Example: loc -pa *.sdelta                             *
+*                                                        *
+*  Version: 0.20   Last updated: July 30, 2007           *
+**********************************************************
+' '
+HELP
+}
+
+# global various
+my $excl_com;         #exclude comments (bool)
+my $excl_blk;         #exclude blank    (bool)
+my $output_a;         #output attributes
+my $output_d;         
+my $output_c;
+
+my @filelis;          #all the files
+my @locaddlis;        #added   lines
+my @locdellis;        #delete  lines
+my @locchalis;        #change  lines
+
+#for running in PLS.
+my $tempdir = `subcom pls command query tempdir`;
+if($tempdir){ chomp($tempdir); }
+
+# check the parameter
+if(@ARGV < 1)
+{
+   help();
+   exit(0);
+}
+elsif(@ARGV==1 && substr($ARGV[0],0,1) eq "-")
+{
+  help();
+  exit(0); 
+}
+else
+{  
+   # shift -c parameter, twice for two parameters
+   my $inclcom, $inclblk;
+   while(substr($ARGV[0],0,1) eq "-"){
+      if($ARGV[0] eq "-c"){$inclcom = 1;}
+      elsif($ARGV[0] eq "-b") {$inclblk  = 1;}
+      elsif($ARGV[0] eq "-p") {$output_a = 1; $output_d = 1; $output_c = 1;}
+      elsif($ARGV[0] eq "-pa"){$output_a = 1;}
+      elsif($ARGV[0] eq "-pd"){$output_d = 1;}
+      elsif($ARGV[0] eq "-pc"){$output_c = 1;}
+      shift;
+   }
+   if($inclcom != 1) {$excl_com = 1;}
+   if($inclblk != 1) {$excl_blk = 1;}
+   
+   # iterate each file
+   @filelis = get_files(@ARGV);
+   if(@filelis==0){
+      print "No match.\n";
+      exit(0);
+   }
+   
+   
+   #add $tempdir to path
+   if($tempdir)
+   {
+      for($i=0;$i<@filelis;$i++){
+         $filelis[$i] = "$tempdir/$filelis[$i]";
+      }
+   }
+   
+   if(@filelis)
+   {
+      print "Calculating...\n";
+
+      foreach my $fname (@filelis){
+         calculate_single_file($fname);
+      }
+      
+      print "..\n";
+      &print_result();
+   }
+}
+
+# get current working directory
+sub get_current_dir
+{
+   my $cdir = `pwd`;
+   chomp($cdir);
+   return $cdir;
+}
+
+
+# judge whether it is section
+sub is_section
+{
+   if( my $parm = shift )
+   {
+      my ($sect, $issue) = split(/\./, $parm);
+   
+      my $mod = &get_module_of_section($sect);
+
+      return $mod ne $sect;
+   }
+}
+
+# get module name from section name
+sub get_module_of_section
+{
+   if( my $section = shift )
+   {
+      my ($sect, $issue) = split(/\./, $section);
+      
+      #get module name 
+      my $group = `subcom pls list $sect`;
+      if($group =~ /\S+\s+(\S+)/)
+      {
+         my $mod = $1;
+         $mod =~ tr/A-Z/a-z/;
+         
+         if($issue){
+            $mod = "$mod.$issue";
+            return $mod;
+         }
+         
+         return $mod;
+      }
+   }
+}
+
+# get sections of the given module
+sub get_new_sections_from_module
+{
+   if(my $module = shift)
+   {
+      my @lis = `subcom pls list $module section`;
+      
+      my @sublis;
+      foreach my $sect (@lis)
+      {
+         if($sect =~ /\s+PROTDMS  --NIL/)
+         {
+            chomp($sect);
+            $sect =~ s/\s+\S{2}\s+PROTDMS.*//g;
+            $sect =~ tr/ //d;
+            $sect =~ tr/A-Z/a-z/;
+            
+            push(@sublis, $sect);
+         }
+      }#foreach
+      
+      return @sublis;
+   }
+}
+
+
+# collect all files which match special symbol(*)
+# get all the files from the input parameters. (e.g.*.sdelta)
+sub get_files
+{
+   my $patch_flag = (@_==1);
+   
+   while(my $match = shift)
+   {
+      # for matched file
+      if($match =~ /\.sdelta$/ or $match =~ /\.sdelta\.fix$/ or $match =~ /\.protdms$/)
+      {
+         push(@filelis, $match);
+      }
+      # for dir
+      elsif(-d $match)
+      {
+         my @lis;
+         opendir(DIR, $match);
+         @lis = readdir(DIR);
+         closedir(DIR);
+         shift @lis; shift @lis;
+         
+         for($i=0;$i<@lis;$i++){
+            $lis[$i] = "$match/$lis[$i]";
+         }
+         
+         get_files(@lis);
+      }
+      # for pls
+      elsif( !(-e $match) )  
+      {
+         # get tempdir
+         if(!$tempdir){ next; }
+
+         #for patch
+         if($patch_flag && $match =~ /^[a-z]{3}\d{2}\.[a-z]{2}\d{2}$/i)
+         {
+            $patch_flag = 0;
+            $match = uc($match);
+            print "$match\n";
+            my @data = `subcom pls list $match`;
+            my $str = pop(@data); chomp($str);
+            $str =~ /UPD:\s+([A-Z]+\.\d+)/;
+            get_files($1);
+         }
+         #for module/section
+         elsif($match =~ /^\w+\.[a-z]{2}\d{2}$/i)
+         {
+            $match = uc($match);
+
+            #new module/section, have not .sdelta file
+            if($match =~ /^\w+\.AA01$/i)
+            {
+               if (is_section($match))
+               {
+                  $match = lc($match);
+                  
+                  my $sectprotdms = $match;
+                  $sectprotdms =~ s/\.aa01/\.protdms/;
+                  
+                  if( !(-e "$tempdir/$sectprotdms") ){
+                     `subcom pls getsource $match`;                     
+                  }
+                  
+                  push(@filelis, $sectprotdms);
+               }
+               else
+               {
+                  my @data = `subcom pls list $match section`;
+                  
+                  my $flag;
+                  foreach my $sect (@data){
+                     if($sect =~ /\s+PROTDMS\s+/)
+                     {
+                        $sect =~ /\s+(\w+)\s+[A-Z]{2}\s+PROTDMS/;
+                        $sect = $1;
+                        if(!$flag){print "\t$match:\t$sect\n";$flag=1;}
+                        else{print "\t\t\t$sect\n";}
+                        
+                        $sect = lc($sect);
+                        if( !(-e "$tempdir/$sect.protdms") ){
+                           `subcom pls getsource $sect.aa01`;                     
+                        }
+                        
+                        push(@filelis, "$sect.protdms");
+                     }
+                  }
+                  # end foreach
+                } 
+                # end is_section
+            }
+            else  
+            {
+               #check if there is new section
+               my @newmod = get_new_sections_from_module($match);
+               foreach my $newsect (@newmod)
+               {
+                  my ($temp, $issue) = split(/\./, $match);
+                  
+                  if( ! (-e "$tempdir/$newsect.protdms") ){
+                     `subcom pls getsource $newsect.$issue`;                     
+                  }
+                  push(@filelis, "$newsect.protdms");
+               }
+            
+               my @data = `subcom pls sdelta m $match`;
+   
+               # get sdelta from tempdir
+               my $flag;
+               foreach my $item (@data)
+               {
+                  if($item =~ /\svs\s+(\w+)\.\w+\(new\)/)
+                  {
+                     $item = $1; $item =~ tr/A-Z/a-z/;
+                     
+                     if(!$flag){ print "\t$match:\t$1\n"; $flag=1; }
+                     else {print "\t\t\t$1\n";}
+                     
+                     # check if already exist
+                     # if exist, do not add to the file list
+                     my $exists;
+                     foreach my $p (@filelis){
+                        if($p eq "$item.sdelta"){
+                           $exists = 1;
+                           last;
+                        }
+                     }
+                     if(!$exists){
+                        push(@filelis, "$item.sdelta");
+                     }
+                     
+                  }
+                  # end if $item
+               }
+               # end foreach
+               
+            }
+         }
+         #for update
+         elsif($match =~ /^[a-z0-9]+\.\d+$/i)
+         {
+            $match = uc($match);
+            print "   $match\n";
+
+            # get moduls in update
+            my @data = `subcom pls list $match`;
+
+            my @lis;
+            while(my $item = pop(@data))
+            {
+               if($item =~ /\s+(\w+)\s+([A-Z]{2}\d{2})\s+/){
+                  $item = "$1.$2";
+                  
+                  unshift(@lis, $item);
+               }
+               elsif($item =~ /\S+/){
+                  last;
+               }
+            }
+            
+            get_files(@lis);
+         }
+         #for CR.### & ACT.###
+         elsif($match =~ /^CR\.Q\d+/i or $match =~ /^ACT\.A\d+/i)  #CR.Q01662509(test)
+         {
+            $match = uc($match);
+            print "$match\n";
+            my $data = `subcom pls type u $match`;
+            #$data = "UPDATE: TANN.85, SUDRIK.61.\n";
+            chomp($data); chop($data);
+            $data =~ s/^UPDATE: //;
+
+            my @lis = split(/,\s+/, $data);
+            
+            get_files(@lis);
+         }
+         else
+         {
+            next;
+         }
+      }
+      
+   } #end while
+
+   return @filelis;
+}
+
+# calculate single file
+sub calculate_single_file
+{
+   if(my $file = shift)
+   {
+      my ($changed,$added,$deleted)=(0,0,0);
+      
+      #get file type
+      my $file_type;  #.sdelta or .sdelta.fix or protdms{1,2,3}
+      
+      # change to lowcase
+      $file =~ tr/A-Z/a-z/;
+
+      if($file =~ /\.sdelta$/){
+         $file_type = 1;  #.sdelta
+      }elsif($file =~ /\.sdelta\.fix$/){
+         $file_type = 2;  #.sdelta.fix
+      }elsif($file =~ /\.protdms$/){
+         $file_type = 3;
+      }else{
+         return;
+      }
+   
+      # get all lines
+      open (WIN, $file);
+      my @lines = <WIN>;
+      close(WIN);
+      
+      if($output_a or $output_d or $output_c){
+         my $fname = get_file_name($file);
+         print "++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+         print "$fname:\n";
+      }
+      
+      # iterate each line
+      my $lattr;
+      foreach my $item (@lines){
+         $lattr = &get_line_attribute($item,$file_type);
+         
+         if( $lattr==0xa ){ #is added
+            $changed++;
+         }elsif($lattr==0xb){ #is added
+            $added++;
+         }elsif($lattr==0xc){ #is delete
+            $deleted++;
+         }else{
+            #un-change
+         }
+      }
+      
+      push(@locchalis, $changed);
+      push(@locaddlis, $added);
+      push(@locdellis, $deleted);
+   }
+}
+
+# calculate sum lines of code 
+# which is changed,added or delete.
+sub sum_loc_lis
+{
+   if(my @lis = @_)
+   {
+      my $sum=0;
+      
+      foreach my $n (@lis){
+         if($n>0){
+           $sum += $n;
+         }
+      }
+      
+      return $sum;
+   }
+}
+
+# #
+# Get line attribute (changed,added or deleted {0xa,0xb,0xc})
+# parms: 
+#    line :       single line in .sdelta file.
+#    file_type :  it's a delta file,sdelta file or sdelta.fix file.
+# 
+sub get_line_attribute
+{
+   if(my $line = shift)
+   {
+      #get file type
+      my $file_type = shift;
+      
+      #
+      # for protdms (only consider to be added)
+      # 
+      
+      if($file_type==3)
+      {
+         if($excl_com){
+            if($line =~ /^\s*\%/){
+               return 0;
+            }
+         }
+         
+         if($excl_blk){
+            if($line =~ /^\s+$/){
+               return 0;
+            }
+         }
+
+         if($output_a){
+            print "   Add> $line";
+         }
+         
+         return 0xb;
+      }
+      
+      
+      #
+      # following for .sdelta & .sdelta.fix
+      # 
+
+      # different file type has different format.
+      # get key symbol position {|,>,<}
+      my $hpos, $pos;
+      
+      if($file_type == 1){            #.sdelta
+         $hpos = 0;
+         $pos = 94;
+      }
+      elsif($file_type == 2){         #.sdelta.fix
+         $hpos = 6;
+         $pos = 100;
+      }else{
+         print "File format internal error.\n";
+      }
+
+      # get key symbol
+      my $key; if($pos){ $key = substr($line, $pos, 1); }
+      my $tail = substr($line, $pos+1, length($line)-$pos-1);
+      my $head = substr($line, $hpos, $pos-$hpos); $head = "  ".$head."\n";
+      
+      # return line attribute
+      if($key eq "|"){       #change
+         if($excl_com){
+            #both comment,do not count
+            if( ($tail =~ /^\s+\%/) &&($head =~  /^\s*\%/) ){
+               return 0;
+            }
+         }
+         
+         if($excl_blk){
+            #both blank,do not count
+            if( ($head =~ /^\s*$/) && ($tail =~ /^\s+$/) ){
+               return 0;
+            }
+         }
+         
+         #left code, right comment, that means delete
+         if( ($head =~ /^\s*[a-zA-Z0-9\&\$\_]/) && ($tail =~ /^\s+\%/) ){
+            if($output_d){
+               print "  D??.< $head";
+               print "  D???< $tail";
+            }
+            return 0xc;
+         }
+           
+         #left comment, right code, that means add
+         if( ($tail =~ /^\s*[a-zA-Z0-9\&\$\_]/) && ($head =~ /^\s*\%/) ){
+            if($output_a){
+               print "  A??.> $head";
+               print "  A???> $tail";
+            }
+            return 0xb;
+         }
+          
+         if($output_c){
+            print "Chang.| $head";
+            print "Change| $tail";
+         }
+         return 0xa;
+      }elsif($key eq ">"){ #add
+         if($excl_com){
+            if($tail =~ /^\s+\%/){
+               return 0;
+            }
+         }
+         
+         if($excl_blk){
+            if($tail =~ /^\s+$/){
+               return 0;
+            }
+         }
+
+        if($output_a){
+            print "   Add> $tail";
+        }
+         
+         return 0xb;       
+      }elsif($key eq "<"){ #delete
+         if($excl_com){
+            if($head =~ /^\s*\%/){
+               return 0;
+            }
+         }
+         
+         if($excl_blk){
+            if($head =~ /^\s*$/){
+               return 0;
+            }
+         }
+         
+         if($output_d){
+            print "Delete< $head";
+         }
+      
+         return 0xc;       
+      }else{
+         return 0;
+      }
+   }
+}
+
+sub get_file_name
+{
+   if(my $pathname = shift)
+   {
+      my $fname = $pathname;
+      $fname =~ /\/([a-zA-Z0-9\.]+)$/;
+      $fname = $1;
+   }
+}
+
+# print out the result
+sub print_result
+{
+my $fnum = @filelis;
+my $locaddnum = sum_loc_lis(@locaddlis);
+my $locdelnum = sum_loc_lis(@locdellis);
+my $locchanum = sum_loc_lis(@locchalis);
+my $locnum    = $locaddnum + $locdelnum + $locchanum;
+
+$~ = "LOCSUMARY";
+write;
+
+$~ = "LOCDETAILS";
+write;
+
+# print file details
+my $fname;
+for($i=0; $i<$fnum; $i++)
+{
+   $fname = get_file_name($filelis[$i]); #get file name from path
+   ($file, $loc, $locadd, $locdel, $loccha)
+    = ($fname,$locaddlis[$i]+$locdellis[$i]+$locchalis[$i],
+        $locaddlis[$i],$locdellis[$i],$locchalis[$i]);
+
+   $~ = "LOCDETAILSITEM";
+   write;
+}
+
+print "\n";
+
+format LOCSUMARY = 
+Summary:
+=========================================================
+Files: @<<<<
+$fnum
+---------------------------------------------------------
+LOC:@<<<<<LOC Added:@<<<<LOC Deleted:@<<<<LOC Changed:@<<<<
+$locnum, $locaddnum, $locdelnum, $locchanum
+
+.
+format LOCDETAILS = 
+Details:
+=========================================================
+         File name      Total     Added  Deleted  Changed
+---------------------------------------------------------
+.
+
+format LOCDETAILSITEM = 
+@>>>>>>>>>>>>>>>>>>    @>>>>>     @>>>>    @>>>>    @>>>>
+$file, $loc, $locadd, $locdel, $loccha
+.
+}
+

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+mkdir ${load_dir}
+
+cd ${load_dir}
+
+
+files=""
+while read file
+do
+   file=${file##http:\/\/}
+   wget http://${cnt_number}:${cnt_password}@$file
+   file=${file##*\/}
+   files="${files} ${file}"
+done < "../loadList.txt"
+
+for file in $files
+do
+   mv ${file} ${file%%fpga*}fpgaIB
+done
+

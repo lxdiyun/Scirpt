@@ -1,0 +1,111 @@
+﻿#!/usr/bin/bash
+ 
+x=$1
+y=$2
+z=$3
+ 
+x=40
+y=20
+z=15
+ 
+surround="2,2,2,1,1,0,0,0,2,1,0,2,0,2,1,0,"
+cmd_w="chcur \"\\\\\33[1A\" 1 -1 \$y"
+cmd_s="chcur \"\\\\\33[1B\" 1  1 \$y"
+cmd_a="chcur \"\\\\\33[1D\" 0 -1 \$x"
+cmd_d="chcur \"\\\\\33[1C\" 0  1 \$x"
+cmd_h="chkrnd \${cursor[0]} \${cursor[1]}"
+cmd_o="exit 0"
+cmd_="log \"invalid command \""
+msg="w:up;s:down;a:left;d:right;h:hit;o:exit,you_win,you_lose,"
+ 
+function log(){
+echo `date "+%D %T"`":"$1>>trace.log
+}
+function init(){
+l=`expr $x \* $y `
+mine="`seq 1 $l|
+awk '{
+a[NR]=(NR>'${z}'?0:1)
+        }END{
+        srand();
+        for(i=1;i<=NR;i++){
+          for(j=NR;j>i;j--)
+             if(rand()>0.8){ a[0]=a[i];a[i]=a[j];a[j]=a[0]; }
+             printf a[i]","
+          }
+        }'`"
+        cover="`seq 1 $l|awk '{printf 1","}'`"
+        result="`awk 'BEGIN{
+        bl=(split("'${surround}'",b,",")-1)/2;
+        al=split("'${mine}'",a,",")-1;
+        x='${x}';
+}END{
+for(i=1;i<=al;i++){
+        k=0;
+        for(j=1;j<=bl;j++){
+          c=(i-1)%x+b[j];
+          d=(int((i-1)/x)+b[j+bl]-1)*x;
+          if(c>0&&d>=0&&c<=x&&d<='${y}'*x) k+=a[c+d];
+          }printf k","
+        }
+}' /dev/null`"
+cursor=( 1 1 )
+echo -ne "\33[2J"
+show
+}
+function cmd(){
+while read -s -n 1 k
+do
+  eval eval \$cmd_$k
+done
+}
+function chcur(){
+newcur=`eval expr \${cursor[$2]} + $3 `
+if [ "$newcur" -ge "1" ] && [ "$newcur" -le "$4" ]
+then
+  eval echo -ne $1
+  eval cursor[$2]=$newcur
+fi
+echo -ne "\33[${cursor[1]};${cursor[0]}H"
+}
+function chkrnd(){
+cover=`awk 'BEGIN{
+al=split("'${result}'",a,",")-1;
+bl=(split("'${surround}'",b,",")-1)/2;
+cl=split("'${cover}'",c,",")-1;
+x='${x}';
+}function checkRound(xp,yp,j,e,d){
+c[xp+x*(yp-1)]=0;
+if(a[xp+x*(yp-1)]>0) return;
+        for(j=1;j<=bl;j++){
+          e=xp+b[j]-1;
+          d=yp+b[j+bl]-1;
+          if(e>0&&d>=0&&e<=x&&d<='${y}'*x&&c[e+x*(d-1)]==1) checkRound(e,d);
+          }
+        }END{
+        checkRound('${1}','${2}');
+        for(i=1;i<=cl;i++)
+          printf c[i]",";
+        }' /dev/null`
+        show
+}
+function show(){
+echo -ne "\33[`expr ${y} + 1 `;1H\33[K\33[1;1H"
+awk 'BEGIN{
+al=split("'${result}'",a,",")-1;
+bl=split("'${mine}'",b,",")-1;
+cl=split("'${cover}'",c,",")-1;
+dl=split("'${msg}'",d,",")-1;
+x='${x}'; st=1;
+ }END{
+ for(i=1;i<=cl;i++)
+        st=st!=2&&b[i]==0&&c[i]==1?0:st!=2&&b[i]==1&&c[i]==0?2:st
+        for(i=1;i<=cl;i++)
+           printf (st==2&&b[i]==1?"X":c[i]=="0"?a[i]==0?" ":a[i]:"+")(i%'${x}'==0?" \n":"")
+           print d[st+1]
+        }' /dev/null
+        echo -ne "\33[${cursor[1]};${cursor[0]}H"
+ 
+ }
+ init
+ cmd

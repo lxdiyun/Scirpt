@@ -1,0 +1,22 @@
+#!/usr/bin/bash
+# global variable definition
+
+# server information
+# FTP IP 
+export ftp_ip=47.104.194.73
+
+# ftp user and password
+export ftp_user=vickoj
+export ftp_password=vickoj
+
+# cnt number and password
+export cnt_number=CNT70289
+export cnt_password=AD0308Li
+
+# time out value
+export ftp_time_out_value=2000
+
+
+#loads directory
+export load_dir=./loads
+

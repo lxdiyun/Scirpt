@@ -1,0 +1,19 @@
+﻿listsf all
+
+
+
+load asmmsgci replace nocheck nousesec norestart
+
+
+load ucemtcui replace nocheck nousesec norestart
+
+
+load uceomca replace nocheck nousesec norestart
+
+
+
+
+
+
+#restart reload active
+#YES

@@ -1,0 +1,43 @@
+#!/bin/bash
+
+if [ 1 == $# ]
+then
+   search_word=$1
+else
+   search_word=adli
+fi
+
+my_views=(`cleartool lsview | gawk  '/'"${search_word}"'/{  
+         if(NF == 2) 
+         {
+            print $1
+         }
+         else
+         {  
+            print $2
+         }
+      }
+      '`)
+#echo ${my_views[@]}
+#echo ${#my_views[@]}
+
+view_index=0
+for view in ${my_views[@]}
+do
+   echo "[${view_index}] ${view}"
+   let view_index=view_index+1
+done
+
+
+echo "Please input the index:"
+read select_index
+
+
+if [[ ${view_index} -gt ${select_index} ]]
+then
+   echo "cleartool setview ${my_views[$select_index]}"
+   cleartool setview ${my_views[$select_index]}
+else
+   echo "Wrong Input"
+fi
+

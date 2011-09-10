@@ -1,0 +1,16 @@
+﻿#!/usr/bin/env expect
+
+set check_path $env(check_path)
+
+set report_path $env(report_path)
+
+set time_out_value 5
+
+spawn sa_codecheck -full -e $check_path -r $report_path;
+expect "Enter Global ID:" {
+   send "CNT70289\r";
+} timeout {exit 0; }
+
+interact;
+
+exit 0;

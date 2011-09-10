@@ -1,0 +1,12 @@
+﻿if [ ! -d ./temp ]
+then
+   mkdir temp
+fi
+
+for file in *
+do
+   if [ -f $file ]
+   then
+sed '/^\.so/{s/\:\:/__/g}' $file » ./temp/${file//\:\:/__}
+   fi
+done

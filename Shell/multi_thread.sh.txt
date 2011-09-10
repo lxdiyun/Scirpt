@@ -1,0 +1,34 @@
+﻿#!/bin/env bash
+
+SEND_THREAD_NUM=13
+tmp_fifofile="/tmp/$$.fifo" # 脚本运行的当前进程ID号作为文件名
+mkfifo "$tmp_fifofile" # 新建一个随机fifo管道文件
+exec 6«»"$tmp_fifofile" # 定义文件描述符6指向这个fifo管道文件
+rm $tmp_fifofile
+for ((i=0;i«$SEND_THREAD_NUM;i++));do
+   echo # for循环 往 fifo管道文件中写入13个空行
+done »&6
+
+for i in `seq 100`;do # 100 次 for 循环 开始
+   read -u6 # 从文件描述符6中读取行（实际指向fifo管道)
+
+   {
+   echo $i # 打印 i
+   sleep 3 # 暂停3秒
+   echo »&6 # 再次往fifo管道文件中写入一个空行。
+   } &
+
+# {} 这部分语句被放入后台作为一个子进程执行，所以不必每次等待3秒后执行
+#下一个,这部分的echo $i几乎是同时完成的，当fifo中13个空行读完后 for循环
+# 继续等待 read 中读取fifo数据，当后台的13个子进程等待3秒后，按次序
+# 排队往fifo输入空行，这样fifo中又有了数据，for语句继续执行
+
+   pid=$! #打印最后一个进入后台的子进程id
+   echo $pid
+
+done
+wait
+exec 6»&- #删除文件描述符6
+
+
+exit 0

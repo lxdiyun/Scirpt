@@ -1,0 +1,39 @@
+﻿spawn scp $rpmname ${username}@${hostIP}:/tmp/
+       expect {
+               "$key_init" { send "yes\r";exp_continue }
+               "$key_password" { send "$userpass\r" }
+       }
+       interact
+ 
+ 
+ 
+ 
+$cat scp_folders
+#!/usr/bin/env bash
+ 
+foldername=("aal1Ces" "atmNetworking" "base" "ethernet" "fabric" "ip" "mgw" "networking" "patch" "pvg" "rex" "trunks" "wanDte")
+ 
+expect -f  ./scp_expect ${foldername[@]}
+ 
+$cat scp_expect
+#!/usr/bin/env expect -f
+ 
+ 
+foreach folder $argv {
+   spawn scp -r software/$folder/MK02020 cdmamg@137.117.33.31:/software/$folder/;
+ 
+   set needInput 1;
+ 
+   while {1 == $needInput} {
+           expect {
+                   "yes/no" {
+                           send "yes\r"
+                   }
+                   "Password" {
+                           set needInput 0;
+                           send "cdmamg\r"
+                   }
+           }
+   }
+   interact;
+}

@@ -1,0 +1,53 @@
+#!/usr/bin/env expect 
+
+set load_name "MK02028";
+set source_temp_dir "/tmp/tar_load";
+set source_folder "software";
+set tartget_folder "/";
+set target_temp_folder "/";
+set target_server "137.117.33.31";
+set user_name "cdmamg";
+set password "cdmamg";
+set folders "aal1Ces atmNetworking base ethernet fabric ip mgw networking pvg rex trunks wanDte";
+
+
+set timeout 99999;
+
+if {![file exists $source_temp_dir]} {
+   exec mkdir $source_temp_dir;
+}
+
+foreach folder $folders {
+   puts "Compressing $folder"
+   system tar cf $source_temp_dir/$folder.tar $source_folder/$folder/$load_name;
+   exec gzip -f $source_temp_dir/$folder.tar;
+}
+
+puts "Transfering Compressed Files";
+spawn ftp $target_server
+expect "Name" {send "$user_name\r";}
+expect "assword:" {send "$password\r";}
+expect "ftp>" {send "bin\r";}
+expect "ftp>" {send "cd $target_temp_folder\r";}
+foreach package $folders {
+   expect "ftp>" {send "put $source_temp_dir/$package.tar.gz $target_temp_folder/$package.tar.gz\r"}
+}
+expect "ftp>" {send "quit\r";}
+interact
+if {[file exists $source_temp_dir]} {
+   system rm -rf $source_temp_dir
+}
+
+puts "Decompressing Files"
+spawn telnet $target_server;
+expect "ogin:" {send "$user_name\r";}
+expect "assword:" {send "$password\r";}
+expect -ex $ {send "cd $tartget_folder\r";}
+foreach package $folders {
+   expect -ex $ {send "gzip -df $target_temp_folder/$package.tar.gz\r"}
+   expect -ex $ {send "tar xf $target_temp_folder/$package.tar\r";}
+   expect -ex $ {send "rm -f $target_temp_folder/$package.tar*\r";}
+}
+   expect -ex $ {send "exit\r";}
+interact;
+

@@ -1,0 +1,28 @@
+﻿#!/usr/bin/bash
+# global variable definition
+
+# DCA SOS IP
+export dca_sos_ip=192.168.144.164
+
+# typhoon user and password
+export ssh_user=mtc
+export ssh_password=mtc
+
+# sos ftp user and password
+export ftp_user=admin
+export ftp_password=admin
+
+# sos user and password
+export sos_user=admin
+export sos_password=admin
+
+# time out value
+export typhoon_time_out_value=20
+export sos_time_out_value=20
+export ftp_time_out_value=20
+
+# file which contain the sos command
+export sos_cmd_file_name=./sos_cmd_file
+
+#loads directory
+export load_dir=./loads

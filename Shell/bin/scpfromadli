@@ -1,0 +1,4 @@
+#!/usr/bin/sh
+
+echo scp adli.rnd.gdnt.local:~/scp_exchange/$@
+scp adli.rnd.gdnt.local:~/scp_exchange/$@

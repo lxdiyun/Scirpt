@@ -1,0 +1,27 @@
+﻿#!/usr/bin/env bash
+
+# global variable definition
+source configure
+
+#collect module name
+module_names=""
+
+for file in $load_dir/*.loadppc
+do
+   module_name=${file%%\.loadppc}
+   module_name=${module_name##$load_dir\/}
+   module_names="${module_names} $module_name"
+done
+
+
+# DCA
+# upload modules
+#expect -f upload_modules_to_ftp_dca $module_names
+# execute sos command to replace modules
+#expect -f login_uce_and_execute_sos_cmd_dca
+
+# CA
+# upload modules
+expect -f upload_modules_to_ftp_ca $module_names
+# execute sos command to replace modules
+expect -f login_uce_and_execute_sos_cmd_ca

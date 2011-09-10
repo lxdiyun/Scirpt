@@ -1,0 +1,55 @@
+﻿imagename;date
+
+
+query process asulgmon
+
+query process becnagui
+
+query process bidcidau
+
+query process cdmainst
+
+query process cmdhp
+
+query process cstpsaud
+
+query process cttaudit
+
+query process cvaagtui
+
+query process handoff
+
+query process ipmprfmp
+
+query process keepalui
+
+query process mgcimhp
+
+query process mtxaudit
+
+query process mtxnpiui
+
+query process mtxtaskp
+
+query process mtxworkp
+
+query process qcaeocui
+
+query process qcainvui
+
+query process mrlchdlr
+
+query process trktbpip
+
+query process trktbsum
+
+
+logutil;open s;back all;open t;
+
+
+ccgci;dedump
+
+
+quit all
+
+logutil;clear s;clear t

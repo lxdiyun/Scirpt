@@ -1,0 +1,23 @@
+#!/bin/bash
+
+files=("/clearlib/pp_27/pvg/inc/private/pdcDspLgCommandInterface.h
+/clearlib/pp_27/pvg/inc/private/pdcDspLgLogger.h
+/clearlib/pp_27/pvg/vspApMgmt/tools/dspLogging/pdcDspLgCommandInterface.cc
+/clearlib/pp_27/pvg/vspApMgmt/tools/dspLogging/pdcDspLgDataUploader.cc
+/clearlib/pp_27/pvg/vspApMgmt/tools/dspLogging/pdcDspLgDisableCommand.cc
+/clearlib/pp_27/pvg/vspApMgmt/tools/dspLogging/pdcDspLgEnableCommand.cc
+/clearlib/pp_27/pvg/vspApMgmt/tools/dspLogging/pdcDspLgEnabledVirtualChannel.cc
+/clearlib/pp_27/pvg/vspApMgmt/tools/dspLogging/pdcDspLgLogger.cc
+/clearlib/pp_27/pvg/vspApMgmt/tools/dspLogging/pdcDspLgStartCommand.cc
+/clearlib/pp_27/pvg/vspApMgmt/tools/dspLogging/pdcDspLgStopCommand.cc")
+
+for file in $files
+do
+   cp $file ~/DLE
+   sed 's/Q02196444 /Q02196444-01 /; 
+   s/Q02196444-01-01 /Q02196444-01 /; 
+   s/30Mar2011/28Mar2011/; 
+   s/2011Mar30/2011Mar28/; 
+   s#03/30/2011#03/28/2011#' $file > $file.output
+   mv $file.output $file
+done

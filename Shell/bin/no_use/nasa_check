@@ -1,0 +1,27 @@
+#!/usr/bin/env csh
+
+source /vob/casa/src/Setup.csh
+
+source /vob/casa/src/tools/build/nasa/nasa_setup/mtxvse.csh
+
+setenv PATH /opt/tools/bin:$PATH
+
+setenv check_path `pwd`
+
+setenv report_path "$HOME/nasa"
+
+set script_dir=`dirname ${0}`
+
+cd /vob/casa/src/tools/build/
+
+source setup.csh
+
+cd -
+
+sbuild -D clean
+
+sbuild -D mk
+
+sbuild -D
+
+expect -f $script_dir/codecheck_expect

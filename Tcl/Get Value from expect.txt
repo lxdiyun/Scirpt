@@ -1,0 +1,61 @@
+﻿#!/usr/bin/env expect
+# The next line is a comment in Tcl, but not sh \
+#        exec /opt/bootleg/bin/expect $0 $@
+ 
+spawn telnet 47.152.183.34 259
+#ecp4g-gd-dmz.asiapac.nortel.com 259
+  set timeout 5
+  expect "User:"  {
+         send "CNT70289\r"
+  } timeout { send_user "Connection Failure\n\r"; exit 0 }
+ 
+  set timeout 5
+ 
+  expect "password:" {
+         stty -echo
+ 
+         set timeout 25
+ 
+         expect_user -re "(.*)\n" {
+            set PASS $expect_out(1,string)
+            send "$PASS\r"
+            send_user "\n"
+         } timeout {
+            send_user "\nno password\n"
+            stty echo
+         }
+ 
+         stty echo
+  } timeout {
+         send_user "Connection Failure\n\r"
+  }
+ 
+  set timeout 25
+ 
+  expect -re "(\[0-9\]+) (.*) (.*)" {
+         send_user "\nWhat we get:\n 1: $expect_out(1,string)\n 2: $expect_out(2,string)\n 3: $expect_out(3,string) \r"
+  }
+ 
+  expect "Enter your choice:" { send "1\r"} timeout { send_user "\nLogin Failure\n\r"; exit 0}
+ 
+interact
+ 
+ 
+ 
+ 
+Result:
+ 
+ 
+* than where prohibited by law and subject to legal requirements, Nortel   
+* Networks reserves the right to review any information in any form on         
+* this network at any time.   
+User: CNT70289
+password:
+********
+User CNT70289 authenticated by Radius authentication
+ 
+What we get:
+1: 70289
+2: authenticated by Radius
+3: authentication
+Choose:
