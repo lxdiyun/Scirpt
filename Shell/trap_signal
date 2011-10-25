@@ -1,0 +1,17 @@
+#!/bin/bash
+while x=0; 
+	do python testmemcached.py > /tmp/memdump.log; sleep 1;  
+done &
+
+sig_handler ()
+{
+	echo "exiting"
+	rm -rf /tmp/memdump.log
+	exit 0
+}
+trap sig_handler SIGINT
+
+watch -n1 -d cat /tmp/memdump.log
+
+
+

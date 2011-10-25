@@ -1,0 +1,4 @@
+#!/bin/sh
+
+ctags --file-scope=yes -R -f ~/tags/netctrl.tags ~/code/trunk/ 
+cscope -bR -f ~/tags/netctrl.out  -s ~/code/trunk/
